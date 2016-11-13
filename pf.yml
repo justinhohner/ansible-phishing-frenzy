@@ -1,0 +1,12 @@
+---
+- name: install phishing frenzy
+  hosts: all
+  remote_user: root
+  vars:
+    test: true
+    pf:
+      blay: nope
+
+  roles:
+    - common
+    - phising_frenzy

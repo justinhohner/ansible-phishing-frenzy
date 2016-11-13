@@ -1,0 +1,114 @@
+---
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install redis
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - redis-server
+
+- name: install phishing frenzy dependencies
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - software-properties-common
+
+- name: docker repo
+  apt_repository: repo='ppa:brightbox/ruby-ng'
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install phishing frenzy dependencies
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - libcurl4-openssl-dev
+   - libssl-dev
+   - zlib1g-dev
+   - apache2-threaded-dev
+   - libapr1-dev
+   - libaprutil1-dev
+   - php5
+   - apache2
+   - mysql-server
+   - git
+   - curl
+   - ruby2.1
+   - ruby2.1-dev
+   - build-essential
+
+- name: phusion passenger repo
+  apt_repository: repo='ppa:brightbox/ruby-ng'
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: Install passenger
+  apt_key: keyserver=keyserver.ubuntu.com id=561F9B9CAC40B2F7
+
+- name: Install passenger dependencies
+  apt : name={{ item }} state=present
+  with_items:
+   - apt-transport-https
+   - ca-certificates
+
+- name: add passenger repo
+  apt_repository: repo='deb https://oss-binaries.phusionpassenger.com/apt/passenger trusty main' state=present
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: Install apache passenger module
+  apt : name={{ item }} state=present
+  with_items:
+   - libapache2-mod-passenger
+
+- git: repo=https://github.com/pentestgeek/phishing-frenzy.git dest=/var/www/phishing-frenzy update=no
+
+- gem: name=bundler state=present
+
+- name: set root password
+  command: mysqladmin -u root password "Funt1me!"
+
+- name: create pf db
+  command: mysql -uroot -pFunt1me! -e "create database pf_dev;"
+
+- name: setup pf db
+  command: mysql -uroot -pFunt1me! -e "grant all privileges on pf_dev.* to 'pf_dev'@'localhost' identified by 'password';"
+
+- bundler: state=present chdir=/var/www/phishing-frenzy/
+
+- name: mysql service state
+  service: name=mysql state=started enabled=yes
+
+- name: db:migrate
+  command: bundle exec rake db:migrate
+
+- name: db:migrate
+  command: bundle exec rake db:seed
+
+- file: path=/var/www/phishing-frenzy/tmp/pids state=directory mode=0755
+
+- name: templates
+  command: bundle exec rake templates:load
+  args:
+    chdir: /var/www/phishing-frenzy/
+
+- file: path=/var/www/phishing-frenzy/public/uploads/ owner=www-data group=www-data state=directory mode=0755

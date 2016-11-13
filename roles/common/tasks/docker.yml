@@ -1,0 +1,62 @@
+---
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: Install pip as a workaround for Ansible issue
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - python-pip
+
+- name: Install docker-py as a workaround for Ansible issue
+  pip: name=docker-py version=1.7.0
+  become: yes
+  become_user: root
+
+- name: Install docker apt keys
+  apt_key: keyserver=p80.pool.sks-keyservers.net id=58118E89F3A912897C070ADBF76221572C52609D
+  become: yes
+  become_user: root
+
+- name: Install docker dependencies
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - apt-transport-https
+   - ca-certificates
+
+- name: docker repo
+  apt_repository: repo='deb https://apt.dockerproject.org/repo ubuntu-trusty main' state=present
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: remove lxc-docker
+  apt : name={{ item }} state=absent
+  become: yes
+  become_user: root
+  with_items:
+   - lxc-docker
+
+- name: install docker
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - docker-engine
+
+- group: name=docker state=present
+  become: yes
+  become_user: root
+
+- user: name=vagrant groups=docker append=yes
+  become: yes
+  become_user: root

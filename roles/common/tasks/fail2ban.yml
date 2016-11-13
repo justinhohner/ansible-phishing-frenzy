@@ -1,0 +1,18 @@
+---
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install fail2ban
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - fail2ban
+
+- name: be sure fail2ban is running and enabled
+  service: name=fail2ban state=running enabled=yes
+  become_user: 'root'
+  become: yes
+  tags: ntp

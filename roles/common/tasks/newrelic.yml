@@ -1,0 +1,42 @@
+---
+- name: Install newrelic apt keys
+  apt_key: url=https://download.newrelic.com/548C16BF.gpg state=present
+  become: yes
+  become_user: root
+
+- name: newrelic repo
+  apt_repository: repo='deb http://apt.newrelic.com/debian/ newrelic non-free' state=present
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install newrelic
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - newrelic-sysmond
+
+- name: add newrelic config directory
+  file: dest=/etc/newrelic/ owner=root group=root mode=0775 recurse=yes state=directory
+  become: yes
+  become_user: root
+
+- name: add newrelic config
+  template: src=nrsysmond.cfg.j2 dest=/etc/newrelic/nrsysmond.cfg owner=newrelic group=newrelic mode=0755
+  become: yes
+  become_user: root
+
+#- name: restart newrelic
+#  service: name=newrelic state=restarted
+
+#vagrant@web:~$ ls -ld /etc/newrelic/
+#drwxr-xr-x 2 root root 4096 Nov  8 17:08 /etc/newrelic/
+#vagrant@web:~$ ls -ld /etc/newrelic/*
+#-rw-r----- 1 newrelic newrelic 9715 May  4  2016 /etc/newrelic/nrsysmond.cfg
+#
+#/etc/init.d/newrelic-sysmond start
