@@ -1,7 +1,7 @@
 ---
 - name: install phishing frenzy
   hosts: all
-  remote_user: root
+  remote_user: ubuntu
   vars:
     test: true
     root_db_password: Funt1me!

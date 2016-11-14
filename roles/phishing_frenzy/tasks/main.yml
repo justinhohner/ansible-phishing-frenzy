@@ -204,12 +204,12 @@
   become: yes
   become_user: root
 
-- name: assets precompile
-  shell: bundle exec rake assets:precompile
-  args:
-    chdir: /var/www/phishing-frenzy/
-  become: yes
-  become_user: www-data
+#- name: assets precompile
+#  shell: bundle exec rake assets:precompile
+#  args:
+#    chdir: /var/www/phishing-frenzy/
+#  become: yes
+#  become_user: www-data
 
 - name: ensure apache2 is running and starts on boot
   service: name=apache2 state=restarted enabled=true
