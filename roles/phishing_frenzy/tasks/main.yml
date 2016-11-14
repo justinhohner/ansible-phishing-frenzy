@@ -1,0 +1,218 @@
+---
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install redis
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - redis-server
+
+- name: install phishing frenzy dependencies
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - software-properties-common
+
+- name: docker repo
+  apt_repository: repo='ppa:brightbox/ruby-ng'
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: install phishing frenzy dependencies
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - libcurl4-openssl-dev
+   - libssl-dev
+   - zlib1g-dev
+   - apache2-threaded-dev
+   - libapr1-dev
+   - libaprutil1-dev
+   - php5
+   - apache2
+   - mysql-server
+   - git
+   - curl
+   - ruby2.1
+   - ruby2.1-dev
+   - build-essential
+   - bundler
+
+- name: phusion passenger repo
+  apt_repository: repo='ppa:brightbox/ruby-ng'
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: Install passenger
+  apt_key: keyserver=keyserver.ubuntu.com id=561F9B9CAC40B2F7
+  become: yes
+  become_user: root
+
+- name: Install passenger dependencies
+  apt : name={{ item }} state=present
+  with_items:
+   - apt-transport-https
+   - ca-certificates
+  become: yes
+  become_user: root
+
+- name: add passenger repo
+  apt_repository: repo='deb https://oss-binaries.phusionpassenger.com/apt/passenger trusty main' state=present
+  become: yes
+  become_user: root
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: yes
+  become_user: root
+
+- name: Install apache passenger module
+  apt : name={{ item }} state=present
+  with_items:
+   - libapache2-mod-passenger
+  become: yes
+  become_user: root
+
+- name: default apache config
+  template: src=apache2.conf dest=/etc/apache2/apache2.conf
+  become: yes
+  become_user: root
+
+- name: copy pf apache config
+  template: src=pf.conf dest=/etc/apache2/sites-enabled/pf.conf
+  become: yes
+  become_user: root
+
+- name: remove defautl apache site
+  file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+  become: yes
+  become_user: root
+
+- git: repo=https://github.com/pentestgeek/phishing-frenzy.git dest=/var/www/phishing-frenzy update=no
+  become: yes
+  become_user: root
+
+- name: install python-mysqldb for Ansible
+  apt : name={{ item }} state=present
+  become: yes
+  become_user: root
+  with_items:
+   - python-mysqldb
+
+- name: ensure mysql is running and starts on boot
+  service: name=mysql state=started enabled=true
+  become: yes
+  become_user: root
+
+# 'localhost' needs to be the last item for idempotency, see
+# http://ansible.cc/docs/modules.html#mysql-user
+- name: update mysql root password for all root accounts
+  become: yes
+  become_user: root
+  mysql_user: name=root host={{ item }} password={{ root_db_password }}
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: copy .my.cnf file with root password credentials
+  template: src=my.cnf dest=/root/.my.cnf owner=root mode=0600
+  become: yes
+  become_user: root
+
+- name: ensure anonymous users are not in the database
+  become: yes
+  become_user: root
+  mysql_user: name='' host={{ item }} state=absent
+  with_items:
+    - localhost
+    - "{{ inventory_hostname }}"
+
+- name: create pf db
+  mysql_db: name=pf_dev state=present
+  become: yes
+  become_user: root
+
+- name: setup pf db
+  mysql_user: name={{ pf_db_username }} password={{ pf_db_password }} priv=pf_dev.*:ALL state=present
+  become: yes
+  become_user: root
+
+# XXX: boooo make a deployment user
+- name: bundle install
+  shell: bundle install --deployment
+  args:
+    chdir: /var/www/phishing-frenzy/
+  become: yes
+  become_user: root
+
+- name: mysql service state
+  service: name=mysql state=started enabled=yes
+  become: yes
+  become_user: root
+
+- name: db:migrate
+  shell: bundle exec rake db:migrate
+  args:
+    chdir: /var/www/phishing-frenzy/
+  become: yes
+  become_user: root
+
+- name: db:seed
+  shell: bundle exec rake db:seed
+  args:
+    chdir: /var/www/phishing-frenzy/
+
+- name: install pf templates
+  shell: bundle exec rake templates:load
+  args:
+    chdir: /var/www/phishing-frenzy/
+  become: yes
+  become_user: root
+
+- file: path=/var/www/phishing-frenzy/tmp/pids state=directory mode=0755
+  become: yes
+  become_user: root
+
+- file: path=/var/www/phishing-frenzy/public/uploads/ owner=www-data group=www-data state=directory mode=0755 recurse=yes
+  become: yes
+  become_user: root
+
+- file: path=/var/www/phishing-frenzy/public/ owner=www-data group=www-data state=directory mode=0755 recurse=yes
+  become: yes
+  become_user: root
+
+#- file: path=/var/www/phishing-frenzy/tmp/cache owner=www-data group=www-data state=directory mode=0755 recurse=yes
+- file: path=/var/www/phishing-frenzy/ owner=www-data group=www-data state=directory mode=0755 recurse=yes
+  become: yes
+  become_user: root
+
+- name: assets precompile
+  shell: bundle exec rake assets:precompile
+  args:
+    chdir: /var/www/phishing-frenzy/
+  become: yes
+  become_user: www-data
+
+- name: ensure apache2 is running and starts on boot
+  service: name=apache2 state=restarted enabled=true
+  become: yes
+  become_user: root
+

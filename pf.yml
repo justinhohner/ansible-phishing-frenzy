@@ -4,9 +4,10 @@
   remote_user: root
   vars:
     test: true
-    pf:
-      blay: nope
+    root_db_password: Funt1me!
+    pf_db_username: pf_dev
+    pf_db_password: password
 
   roles:
     - common
-    - phising_frenzy
+    - phishing_frenzy
